@@ -408,7 +408,10 @@ kbd, .kbd {
   font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
 }
 .dock-label .n { letter-spacing: 0; font-weight: 600; opacity: .7; }
-.dock-label button { margin-left: auto; font-size: 10.5px; letter-spacing: 0; text-transform: none; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+.dock-label button { font-size: 10.5px; letter-spacing: 0; text-transform: none; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; padding: 2px 4px; border-radius: 6px; }
+.dock-label button + button { margin-left: 2px; }
+.dock-label button:first-of-type { margin-left: auto; }
+.dock-label button:hover { background: var(--surface-3); }
 .dock-label button:hover { color: var(--text); }
 .dock-tile {
   position: relative; flex: none;
@@ -434,12 +437,13 @@ kbd, .kbd {
 .dock-icon img { width: 22px; height: 22px; object-fit: contain; }
 .dock-icon.emoji { font-size: 19px; background: rgba(var(--accent-rgb), .14); }
 .dock-tile .t { font-size: 10.5px; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
-.dock-tile .edit {
-  position: absolute; top: 1px; right: 1px; width: 17px; height: 17px; border-radius: 5px;
-  display: none; place-items: center; background: var(--surface); color: var(--text-dim);
-  border: 1px solid var(--border);
-}
-.dock-tile:hover .edit { display: grid; }
+.dock-tile.icon-only { width: 44px; justify-content: center; gap: 0; padding: 6px 3px; }
+.dock-tile.icon-only .dock-icon { width: 36px; height: 36px; }
+.dock-tile.icon-only .dock-icon img { width: 21px; height: 21px; }
+.dock-tile.add.icon-only { width: 44px; }
+.dock-tile.add.icon-only .t { display: none; }
+.dock-tile.editable { cursor: grab; }
+.dock-tile.editable:active { cursor: grabbing; }
 .dock-tile.add {
   width: 58px; border: 1px dashed var(--border-strong); color: var(--muted); justify-content: center;
   background: transparent;
@@ -603,6 +607,26 @@ html[data-theme="light"] .bookmark:hover { box-shadow: var(--shadow); }
 .bookmark:hover .star-btn { opacity: 1; }
 .bookmark .star-btn:hover { background: var(--surface-3); color: #ffc14d; }
 .bookmark .star-btn.on { opacity: 1; color: #ffc14d; }
+
+/* ---------- editing mode ---------- */
+body.editing .app .bookmark { cursor: grab; }
+body.editing .app .bookmark:active { cursor: grabbing; }
+body.editing .app .bookmark .star-btn { opacity: .55; }
+body.editing .app .bookmark:hover .star-btn, body.editing .app .bookmark .star-btn.on { opacity: 1; }
+body.editing .app .bookmark .bm-actions { opacity: .9; }
+body.editing .app .bookmark:hover { border-color: rgba(var(--accent-rgb), .45); }
+body.editing .app .bookmark.selected { border-color: rgba(var(--accent-rgb), .8); }
+body.editing .app .folder-card { cursor: grab; }
+body.editing .app .folder-card > .more { opacity: 1; }
+body.editing .app .tree-row .more { display: grid; }
+body.editing .app .tree-row .cnt { display: none; }
+body.editing .app .dock-tile:not(.add) { outline: 1px dashed var(--border-strong); outline-offset: -2px; }
+body.editing .app .dock-tile:not(.add):hover { outline-color: rgba(var(--accent-rgb), .55); }
+body.editing .app .bookmark.dragging { cursor: grabbing; }
+.edit-bar { border-color: rgba(var(--accent-rgb), .32); }
+body.editing .topbar { box-shadow: inset 0 -2px 0 rgba(var(--accent-rgb), .35); }
+body.editing .bookmark .bm-title { user-select: none; }
+.edit-bar .btn { flex: none; }
 .bookmark .pin-flag { position: absolute; top: 0; left: 0; width: 3px; height: 26px; border-radius: 0 3px 3px 0; background: linear-gradient(var(--accent), var(--accent-2)); }
 
 /* list view */

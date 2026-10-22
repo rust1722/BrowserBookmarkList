@@ -152,6 +152,7 @@ const P = {
   book: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2.5 2.5 0 0 1 2 1v14a2 2 0 0 0-1.7-1H4z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2.5 2.5 0 0 0-2 1v14a2 2 0 0 1 1.7-1H20z"/>',
   stack: '<path d="m12 3 9 4.6-9 4.6-9-4.6z"/><path d="m3.6 12.4 8.4 4.3 8.4-4.3M3.6 16.8 12 21l8.4-4.2"/>',
   eye: '<path d="M2.5 12S5.8 5.8 12 5.8 21.5 12 21.5 12 18.2 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M4 4l16 16"/><path d="M9.9 5.2A9.7 9.7 0 0 1 12 5c6.2 0 9.5 7 9.5 7a16 16 0 0 1-3.2 3.9"/><path d="M6.6 6.9A16.4 16.4 0 0 0 2.5 12s3.3 7 9.5 7a9.4 9.4 0 0 0 3.4-.6"/><path d="M9.9 10.1a3 3 0 0 0 4.1 4.2"/>',
   sort: '<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
   tagPlus: '<path d="M20.5 13.3 12.8 21a1.8 1.8 0 0 1-2.6 0l-7.2-7.2A1.8 1.8 0 0 1 2.5 12.5V4.3A1.8 1.8 0 0 1 4.3 2.5h8.2c.5 0 1 .2 1.3.6l6.7 6.7a1.8 1.8 0 0 1 0 2.5z"/><path d="M7.5 10.5v4M5.5 12.5h4"/>',
   logo: '<path d="M7 4.5h10a1 1 0 0 1 1 1V21l-6-3.4L6 21V5.5a1 1 0 0 1 1-1z"/>',
@@ -197,6 +198,8 @@ function defaultSettings() {
     autoSnapshots: true,
     sidebarWidth: 272,
     clickOpens: true,
+    editMode: false,
+    dockShowLabels: true,
     demo: false
   };
 }
@@ -214,7 +217,6 @@ function emptyState() {
 let state = emptyState();
 let ui = {
   view: 'all',
-  selectMode: false,
   limit: 320,
   folderId: null,
   tag: null,
@@ -304,6 +306,7 @@ function coalesceState(raw) {
     iconType: x.iconType || 'favicon',
     icon: x.icon || '',
     color: x.color || '#6c8cff',
+    showLabel: x.showLabel === undefined ? s.settings.dockShowLabels !== false : !!x.showLabel,
     order: Number.isFinite(x.order) ? x.order : i
   })).sort((a, b) => a.order - b.order).map((x, i) => Object.assign(x, { order: i }));
   const folders = safeArr(raw.folders).filter((f) => f && f.name).map((f, i) => ({
@@ -467,6 +470,16 @@ function applyLayout() {
   if (app) {
     app.classList.toggle('sidebar-collapsed', !!st._collapsed && window.innerWidth > 900);
     app.classList.toggle('sidebar-open', false);
+  }
+  document.body.classList.toggle('editing', !!st.editMode);
+  const modeBtn = $('#modeBtn');
+  if (modeBtn) {
+    modeBtn.classList.toggle('accent', !!st.editMode);
+    modeBtn.innerHTML = icon(st.editMode ? 'pencil' : 'eye', 18);
+    modeBtn.setAttribute('aria-pressed', String(!!st.editMode));
+    modeBtn.setAttribute('title', st.editMode
+      ? 'Режим редактирования включён — нажмите, чтобы вернуться к просмотру (Ctrl+E)'
+      : 'Режим просмотра — нажмите, чтобы редактировать закладки (Ctrl+E)');
   }
 }
 
@@ -674,6 +687,7 @@ function el(html) {
 /* ============================================================
    10. Read-only model helpers
    ============================================================ */
+function isEditing() { return !!state.settings.editMode; }
 function folderById(id) { return state.folders.find((f) => f.id === id) || null; }
 function bookmarkById(id) { return state.bookmarks.find((b) => b.id === id) || state.trash.find((b) => b.id === id) || null; }
 function activeBookmarks() { return state.bookmarks.filter((b) => !b.archived); }
@@ -916,14 +930,14 @@ function treeHTML(parentId, depth) {
     const count = folderStats(f.id).direct;
     return '<div class="tree-node ' + (collapsed ? '' : 'open') + '" data-folder-row="' + f.id + '">' +
       '<div class="tree-row">' +
-        '<button type="button" class="nav-item ' + (active ? 'active' : '') + '" data-act="open-folder" data-id="' + f.id + '" draggable="true" title="' + esc(folderPath(f.id).map((x) => x.name).join(' / ')) + '">' +
+        '<button type="button" class="nav-item ' + (active ? 'active' : '') + '" data-act="open-folder" data-id="' + f.id + '" draggable="' + isEditing() + '" title="' + esc(folderPath(f.id).map((x) => x.name).join(' / ')) + '">' +
           (hasKids
             ? '<span class="caret" data-act="toggle-folder" data-id="' + f.id + '">' + icon('chevronRight', 13) + '</span>'
             : '<span class="caret" style="opacity:0">' + icon('chevronRight', 13) + '</span>') +
           '<span class="folder-emoji">' + folderGlyph(f, 16) + '</span>' +
           '<span class="name">' + esc(f.name) + '</span>' +
           (count ? '<span class="cnt">' + count + '</span>' : '') +
-          '<span class="more" data-act="folder-menu" data-id="' + f.id + '" role="button" aria-label="Меню папки">' + icon('more', 14) + '</span>' +
+          (isEditing() ? '<span class="more" data-act="folder-menu" data-id="' + f.id + '" role="button" aria-label="Меню папки">' + icon('more', 14) + '</span>' : '') +
         '</button>' +
       '</div>' +
       (hasKids && !collapsed ? '<div class="tree-children">' + treeHTML(f.id, depth + 1) + '</div>' : '') +
@@ -936,22 +950,28 @@ function renderDock() {
   const root = $('#dock');
   if (!root) return;
   const items = state.dock.slice().sort((a, b) => a.order - b.order);
+  const editing = isEditing();
+  const labels = state.settings.dockShowLabels !== false;
   const label = $('#dockLabel');
   if (label) {
     label.innerHTML = '<span>Быстрый доступ</span><span class="n">' + items.length + '</span>' +
+      '<button type="button" data-act="dock-labels" title="' + (labels ? 'Скрыть названия — останутся только иконки' : 'Показать названия кнопок') + '">' +
+        icon(labels ? 'eye' : 'eyeOff', 13) + '<span>' + (labels ? 'Подписи' : 'Только иконки') + '</span></button>' +
       '<button type="button" data-act="dock-add">' + icon('plus', 13) + ' Добавить</button>';
   }
-  root.innerHTML = items.map((it) =>
-    '<div class="dock-tile" data-act="dock-open" data-id="' + it.id + '" draggable="true" title="' + esc(it.title + '\n' + it.url) + '">' +
-      '<span class="edit" data-act="dock-edit" data-id="' + it.id + '">' + icon('pencil', 10) + '</span>' +
+  root.innerHTML = items.map((it) => {
+    const showLabel = it.showLabel !== false;
+    const cls = 'dock-tile' + (showLabel ? '' : ' icon-only') + (editing ? ' editable' : '');
+    return '<div class="' + cls + '" data-act="dock-open" data-id="' + it.id + '" draggable="' + editing + '" ' +
+      'title="' + esc(it.title + '\n' + it.url + (editing ? '\nКлик — настроить кнопку' : '')) + '">' +
       dockIconHTML(it) +
-      '<span class="t">' + esc(it.title) + '</span>' +
-    '</div>'
-  ).join('') +
-  '<div class="dock-tile add" data-act="dock-add" title="Добавить быструю ссылку">' +
-    '<div class="dock-icon">' + icon('plus', 18) + '</div><span class="t">Добавить</span>' +
+      (showLabel ? '<span class="t">' + esc(it.title) + '</span>' : '') +
+    '</div>';
+  }).join('') +
+  '<div class="dock-tile add' + (labels ? '' : ' icon-only') + '" data-act="dock-add" title="Добавить быструю ссылку">' +
+    '<div class="dock-icon">' + icon('plus', 18) + '</div>' + (labels ? '<span class="t">Добавить</span>' : '') +
   '</div>' +
-  (items.length === 0 ? '<div class="dock-empty">Сюда можно перетащить закладку — она станет быстрой кнопкой</div>' : '');
+  (items.length === 0 ? '<div class="dock-empty">' + (editing ? 'Перетащите закладку сюда — она станет быстрой кнопкой' : 'Включите режим редактирования, чтобы перетащить сюда закладку') + '</div>' : '');
 }
 
 /* ---------- content ---------- */
@@ -998,8 +1018,6 @@ function renderContent() {
   head += '<select class="sort-select" data-act="sort" aria-label="Сортировка">' +
     SORTS.map((s) => '<option value="' + s.id + '"' + (ui.sort === s.id ? ' selected' : '') + '>' + esc(s.label) + '</option>').join('') +
     '</select>';
-  head += '<button type="button" class="btn sm ' + (ui.selectMode ? 'primary' : '') + '" data-act="select-mode" title="Режим выделения: клик выбирает закладки"' + (ui.selectMode ? ' aria-pressed="true"' : '') + '>' +
-    icon('check', 14) + '<span class="cmd-extra">' + (ui.selectMode ? 'Готово' : 'Выбрать') + '</span></button>';
   head += '<div class="seg" role="group" aria-label="Вид">' +
     '<button type="button" class="' + (!isListView ? 'active' : '') + '" data-act="set-view" data-mode="grid" title="Сетка">' + icon('grid', 15) + '</button>' +
     '<button type="button" class="' + (isListView ? 'active' : '') + '" data-act="set-view" data-mode="list" title="Список">' + icon('list', 15) + '</button>' +
@@ -1015,10 +1033,10 @@ function renderContent() {
   }
   head += '</div></div>';
 
-  if (ui.selectMode) {
-    head += '<div class="filter-bar">' + icon('check', 14) +
-      '<span>Режим выделения: кликайте карточки, чтобы выбрать несколько. Затем — действия внизу экрана.</span>' +
-      '<button type="button" class="btn sm ghost" data-act="select-mode" style="margin-left:auto">Выйти</button></div>';
+  if (isEditing()) {
+    head += '<div class="filter-bar edit-bar">' + icon('pencil', 14) +
+      '<span>Режим редактирования: клик выделяет карточки, перетаскивание меняет папку и порядок, двойной клик открывает сайт.</span>' +
+      '<button type="button" class="btn sm ghost" data-act="toggle-edit" style="margin-left:auto">' + icon('check', 13) + 'Готово</button></div>';
   }
   if (q) {
     head += '<div class="filter-bar">' + icon('search', 14) + '<span>Найдено <b>' + list.length + '</b> по запросу «<b>' + esc(q) + '</b>»</span>' +
@@ -1035,11 +1053,11 @@ function renderContent() {
       body += '<div class="section-label">Папки <span class="line"></span><span style="letter-spacing:0;text-transform:none;font-weight:600">' + kids.length + '</span></div>' +
         '<div class="folders-grid">' + kids.map((f) => {
           const s = folderStats(f.id);
-          return '<div class="folder-card" data-act="open-folder" data-id="' + f.id + '" draggable="true" title="' + esc(folderPath(f.id).map((x) => x.name).join(' / ')) + '">' +
+          return '<div class="folder-card" data-act="open-folder" data-id="' + f.id + '" draggable="' + isEditing() + '" title="' + esc(folderPath(f.id).map((x) => x.name).join(' / ')) + '">' +
             '<div class="fc-icon" style="background:' + esc(f.color ? 'color-mix(in srgb, ' + f.color + ' 20%, transparent)' : 'rgba(108,140,255,.12)') + ';color:' + esc(f.color || 'var(--accent)') + '">' + folderGlyph(f, 19) + '</div>' +
             '<div class="fc-body"><div class="fc-title">' + esc(f.name) + '</div>' +
               '<div class="fc-meta">' + s.direct + ' закл.' + (s.kids ? ' · ' + s.kids + ' пап.' : '') + '</div></div>' +
-            '<button type="button" class="icon-btn small more" data-act="folder-menu" data-id="' + f.id + '" aria-label="Меню папки">' + icon('more', 15) + '</button>' +
+            (isEditing() ? '<button type="button" class="icon-btn small more" data-act="folder-menu" data-id="' + f.id + '" aria-label="Меню папки">' + icon('more', 15) + '</button>' : '') +
           '</div>';
         }).join('') + '</div>';
     } else if (ui.view === 'folder') {
@@ -1073,16 +1091,17 @@ function renderContent() {
 }
 
 function bookmarkHTML(b, q, isList) {
+  const editing = isEditing();
   const selected = ui.selection.has(b.id);
   const tags = (b.tags || []).slice(0, 4);
   const dom = domainOf(b.url);
   const path = folderPath(b.folderId);
   const isTrash = ui.view === 'trash';
   const meta = isTrash ? ('удалено ' + fmtRel(b.deletedAt)) : fmtRel(b.createdAt);
-  return '<article class="bookmark ' + (selected ? 'selected' : '') + '" data-act="open-bm" data-id="' + esc(b.id) + '" tabindex="0" draggable="' + (!isTrash) + '" ' +
-    'aria-label="' + esc(b.title) + '" title="' + esc(b.title + '\n' + b.url + (path.length ? '\n📁 ' + path.map((f) => f.name).join(' / ') : '')) + '">' +
+  return '<article class="bookmark ' + (selected ? 'selected' : '') + (editing ? ' editing' : '') + '" data-act="open-bm" data-id="' + esc(b.id) + '" tabindex="0" draggable="' + (editing && !isTrash) + '" ' +
+    'aria-label="' + esc(b.title) + '" title="' + esc(b.title + '\n' + b.url + (path.length ? '\n📁 ' + path.map((f) => f.name).join(' / ') : '') + (editing && !isTrash ? '\nКлик — выделить · двойной клик — открыть' : '')) + '">' +
     (b.favorite ? '<span class="pin-flag"></span>' : '') +
-    '<button type="button" class="star-btn ' + (b.favorite ? 'on' : '') + '" data-act="bm-star" data-id="' + esc(b.id) + '" aria-label="В избранное">' + icon('star', 14) + '</button>' +
+    (editing && !isTrash ? '<button type="button" class="star-btn ' + (b.favorite ? 'on' : '') + '" data-act="bm-star" data-id="' + esc(b.id) + '" aria-label="В избранное">' + icon('star', 14) + '</button>' : '') +
     '<div class="bm-top">' + bmIconHTML(b) +
       '<div class="bm-head">' +
         '<div class="bm-title">' + hl(b.title, q) + '</div>' +
@@ -1094,13 +1113,13 @@ function bookmarkHTML(b, q, isList) {
       ((b.tags || []).length > 4 ? '<span class="bm-tag">+' + ((b.tags || []).length - 4) + '</span>' : '') + '</div>' : '') +
     '<div class="bm-foot">' +
       '<span class="date" title="' + esc(fmtDate(b.createdAt)) + '">' + esc(meta) + (b.clicks ? ' · ' + b.clicks + ' откр.' : '') + '</span>' +
-      '<div class="bm-actions">' +
+      (editing ? '<div class="bm-actions">' +
         (isTrash
           ? '<button type="button" class="icon-btn" data-act="trash-restore" data-id="' + esc(b.id) + '" title="Восстановить">' + icon('restore', 14) + '</button>' +
             '<button type="button" class="icon-btn" data-act="trash-delete" data-id="' + esc(b.id) + '" title="Удалить навсегда">' + icon('trash', 14) + '</button>'
           : '<button type="button" class="icon-btn" data-act="bm-edit" data-id="' + esc(b.id) + '" title="Изменить">' + icon('pencil', 14) + '</button>' +
             '<button type="button" class="icon-btn" data-act="bm-menu" data-id="' + esc(b.id) + '" title="Ещё">' + icon('more', 14) + '</button>') +
-      '</div>' +
+      '</div>' : '') +
     '</div>' +
   '</article>';
 }
@@ -1635,7 +1654,7 @@ function folderDialog(opts) {
 function dockDialog(opts) {
   const o = opts || {};
   const item = o.dockId ? state.dock.find((d) => d.id === o.dockId) : null;
-  const seed = item || { title: o.title || '', url: o.url || '', iconType: 'favicon', icon: o.icon || '⭐', color: '' };
+  const seed = item || { title: o.title || '', url: o.url || '', iconType: 'favicon', icon: o.icon || '⭐', color: '', showLabel: state.settings.dockShowLabels !== false };
   const body =
     '<div class="field"><label for="dTitle">Название</label>' +
       '<input class="input" id="dTitle" data-field="title" placeholder="Например, Почта" value="' + esc(seed.title) + '">' +
@@ -1643,7 +1662,12 @@ function dockDialog(opts) {
     '<div class="field"><label for="dUrl">Адрес</label>' +
       '<input class="input" id="dUrl" data-field="url" placeholder="mail.google.com" value="' + esc(seed.url) + '" spellcheck="false">' +
     '</div>' +
-    '<div class="field"><span class="field-label">Иконка</span>' + iconEditorHTML('dock', seed) + '</div>';
+    '<div class="field"><span class="field-label">Иконка</span>' + iconEditorHTML('dock', seed) + '</div>' +
+    '<div class="set-row" style="padding:2px 0 4px">' +
+      '<div class="set-text"><div class="set-name">Показывать название</div>' +
+      '<div class="set-desc">Выключите — на панели останется только иконка</div></div>' +
+      '<button type="button" class="switch ' + (seed.showLabel !== false ? 'on' : '') + '" data-label-toggle role="switch" aria-checked="' + (seed.showLabel !== false) + '"></button>' +
+    '</div>';
   const entry = openModal({
     title: item ? 'Изменить быструю ссылку' : 'Быстрая ссылка',
     subtitle: 'Кнопка на верхней панели для самых нужных сайтов',
@@ -1655,6 +1679,11 @@ function dockDialog(opts) {
   const modal = entry.modal;
   const titleIn = $('[data-field="title"]', modal);
   const urlIn = $('[data-field="url"]', modal);
+  const labelToggle = $('[data-label-toggle]', modal);
+  labelToggle.addEventListener('click', () => {
+    labelToggle.classList.toggle('on');
+    labelToggle.setAttribute('aria-checked', String(labelToggle.classList.contains('on')));
+  });
   const editor = wireIconEditor(modal, () => ({ title: titleIn.value, url: urlIn.value, icon: seed.icon }));
   editor.refresh();
   urlIn.addEventListener('input', () => editor.refresh());
@@ -1678,7 +1707,8 @@ function dockDialog(opts) {
       url: normalizeUrl(rawUrl),
       iconType: iconData.iconType,
       icon: iconData.icon,
-      color: iconData.color || ''
+      color: iconData.color || '',
+      showLabel: labelToggle.classList.contains('on')
     };
     if (item) Object.assign(item, payload);
     else state.dock.push(Object.assign({ id: uid('dock'), order: state.dock.length }, payload));
@@ -1873,11 +1903,18 @@ function settingsBodyHTML() {
       '<input type="range" min="190" max="380" step="6" value="' + st.cardMin + '" data-range="cardMin" style="width:150px"></div>' +
     '<div class="set-row"><div class="set-text"><div class="set-name">Вид коллекции</div><div class="set-desc">Сетка или компактный список</div></div>' +
       segHTML('view', [['grid', 'Сетка', icon('grid', 14)], ['list', 'Список', icon('list', 14)]], st.view) + '</div>' +
+    '<div class="set-row"><div class="set-text"><div class="set-name">Названия на быстрых кнопках</div><div class="set-desc">Выключите — на панели останутся только иконки</div></div>' + switchHTML('dockShowLabels', st.dockShowLabels !== false) + '</div>' +
     '<div class="set-row"><div class="set-text"><div class="set-name">Иконки сайтов</div><div class="set-desc">Подгружать фавиконы из интернета</div></div>' + switchHTML('showFavicons', st.showFavicons) + '</div>' +
     '<div class="set-row"><div class="set-text"><div class="set-name">Источник иконок</div><div class="set-desc">Если фавикон не грузится — покажем букву</div></div>' +
       '<select class="input" data-select="faviconService" style="width:150px">' +
         [['google', 'Google'], ['duckduckgo', 'DuckDuckGo'], ['none', 'Только буквы']].map(([v, l]) => '<option value="' + v + '"' + (st.faviconService === v ? ' selected' : '') + '>' + l + '</option>').join('') +
       '</select></div>' +
+    '</div>';
+
+  html += '<div class="set-group"><h4>Режим работы</h4>' +
+    '<div class="set-row" style="align-items:flex-start"><div class="set-text"><div class="set-name">Редактирование</div>' +
+      '<div class="set-desc">В режиме просмотра на карточках нет кнопок и перетаскивания — ничего не мешает. Включайте правку, когда нужно всё перестроить (Ctrl+E).</div></div>' +
+      segHTML('editMode', [['view', 'Просмотр', icon('eye', 14)], ['edit', 'Правка', icon('pencil', 14)]], st.editMode ? 'edit' : 'view') + '</div>' +
     '</div>';
 
   html += '<div class="set-group"><h4>Поведение</h4>' +
@@ -1942,6 +1979,11 @@ function wireSettings(root) {
     if (segBtn) {
       const key = segBtn.dataset.set;
       const val = segBtn.dataset.val;
+      if (key === 'editMode') {
+        setEditing(val === 'edit');
+        if (settingsPaint) settingsPaint();
+        return;
+      }
       state.settings[key] = val;
       applyTheme(); applyAccent(); applyLayout();
       saveAll(); render(); if (settingsPaint) settingsPaint();
@@ -1951,6 +1993,7 @@ function wireSettings(root) {
       const key = tg.dataset.toggle;
       if (key === '_sidebar') { state.settings._collapsed = !state.settings._collapsed; }
       else { state.settings[key] = !state.settings[key]; }
+      if (key === 'dockShowLabels') state.dock.forEach((d) => { d.showLabel = !!state.settings.dockShowLabels; });
       applyTheme(); applyAccent(); applyLayout(); saveAll(); render(); if (settingsPaint) settingsPaint();
     }
   });
@@ -2347,11 +2390,14 @@ function openShortcuts() {
     ['Ctrl / ⌘ + K', 'Палитра команд и поиск'],
     ['Ctrl / ⌘ + N', 'Новая закладка'],
     ['Ctrl / ⌘ + Shift + N', 'Новая папка'],
+    ['Ctrl / ⌘ + E', 'Режим просмотра ↔ редактирования'],
     ['Ctrl / ⌘ + B', 'Показать/скрыть панель'],
     ['Ctrl / ⌘ + S', 'Сохранить в JSON-файл'],
     ['Ctrl / ⌘ + ,', 'Настройки'],
     ['/', 'Фокус в поиск'],
     ['Enter', 'Открыть закладку'],
+    ['Клик в режиме правки', 'Выделить закладку'],
+    ['Двойной клик', 'Открыть закладку'],
     ['E', 'Изменить закладку'],
     ['Del', 'В корзину (для выделенных)'],
     ['Ctrl / ⌘ + клик', 'Добавить к выделению'],
@@ -2372,6 +2418,7 @@ function openShortcuts() {
    18. Drag & drop
    ============================================================ */
 let lastDragEnd = 0;
+let suppressClick = false;
 let dndBound = false;
 let fileOverlay = null;
 
@@ -2380,6 +2427,7 @@ function attachDnD() {
   dndBound = true;
 
   document.addEventListener('dragstart', (e) => {
+    if (!isEditing()) { if (e.dataTransfer) e.dataTransfer.effectAllowed = 'none'; return; }
     const bmEl = e.target.closest('.bookmark[draggable="true"]');
     const folderCard = e.target.closest('.folder-card');
     const treeItem = e.target.closest('.tree-row .nav-item[draggable="true"]');
@@ -2416,6 +2464,8 @@ function attachDnD() {
 
   document.addEventListener('dragend', () => {
     lastDragEnd = Date.now();
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 260);
     drag = null;
     $$('.dragging').forEach((el) => el.classList.remove('dragging'));
     clearDropMarks();
@@ -2639,8 +2689,12 @@ function selectBookmark(id, e) {
     ui.selection.add(id);
     ui.anchorId = id;
   }
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  $$('.bookmark').forEach((el) => el.classList.toggle('selected', ui.selection.has(el.dataset.id)));
   renderSelectionBar();
-  render();
 }
 
 /* ============================================================
@@ -2674,6 +2728,8 @@ function openPalette(initial) {
     { label: 'Новая папка', icon: 'folderPlus', kbd: 'Ctrl ⇧ N', run: () => folderDialog({}) },
     { label: 'Быстрая ссылка на панель', icon: 'sparkles', run: () => dockDialog({}) },
     { label: 'Настройки', icon: 'sliders', kbd: 'Ctrl ,', run: () => openSettings() },
+    { label: isEditing() ? 'Режим просмотра' : 'Режим редактирования', icon: isEditing() ? 'eye' : 'pencil', kbd: 'Ctrl E', run: () => setEditing(!isEditing()) },
+    { label: 'Скрыть/показать названия на панели', icon: 'eyeOff', run: () => { handleAction('dock-labels', document.body, { stopPropagation() {} }); } },
     { label: 'Переключить тему', icon: resolveTheme() === 'dark' ? 'sun' : 'moon', run: () => { state.settings.theme = resolveTheme() === 'dark' ? 'light' : 'dark'; applyTheme(); saveAll(); render(); } },
     { label: 'Экспорт в HTML (для браузера)', icon: 'download', run: () => exportHTML() },
     { label: 'Экспорт в JSON', icon: 'download', run: () => exportJSON() },
@@ -2758,6 +2814,41 @@ function openPalette(initial) {
 /* ============================================================
    21. Global actions
    ============================================================ */
+function setEditing(on) {
+  const next = !!on;
+  if (next === isEditing()) return;
+  state.settings.editMode = next;
+  if (!next) { ui.selection.clear(); ui.anchorId = null; }
+  applyLayout();
+  saveAll();
+  render();
+  if (settingsPaint) settingsPaint();
+  toast(next ? 'Режим редактирования: перетаскивайте карточки и меняйте всё' : 'Режим просмотра: ничего не мешает',
+    { icon: next ? 'pencil' : 'eye', duration: 2600 });
+}
+function dockMenu(id, x, y) {
+  const item = state.dock.find((d) => d.id === id);
+  if (!item) return;
+  openMenu([
+    { label: 'Открыть', icon: 'external', onClick: () => { if (isSafeUrl(item.url)) window.open(item.url, '_blank', 'noopener'); } },
+    { label: 'Изменить', icon: 'pencil', onClick: () => dockDialog({ dockId: id }) },
+    { label: item.showLabel === false ? 'Показывать название' : 'Только иконка', icon: item.showLabel === false ? 'eye' : 'eyeOff',
+      onClick: () => {
+        item.showLabel = item.showLabel === false;
+        if (state.settings.dockShowLabels !== undefined && item.showLabel) state.settings.dockShowLabels = true;
+        saveAll(); render();
+      } },
+    { sep: true },
+    { label: 'Убрать с панели', icon: 'trash', danger: true, onClick: () => {
+      const snap = dataSnapshot();
+      state.dock = state.dock.filter((d) => d.id !== id);
+      state.dock.sort((a, b) => a.order - b.order).forEach((d, i) => { d.order = i; });
+      saveAll(); render();
+      toastUndo('Убрано с панели', snap);
+    } }
+  ], x, y);
+}
+
 function toggleSidebar() {
   const app = $('#app');
   if (window.innerWidth <= 900) app.classList.toggle('sidebar-open');
@@ -2872,10 +2963,14 @@ function handleAction(act, el, e) {
     case 'new-bm': bookmarkDialog({}); return;
     case 'new-folder': folderDialog({}); return;
     case 'set-view': state.settings.view = el.dataset.mode; saveAll(); render(); if (settingsPaint) settingsPaint(); return;
-    case 'select-mode': {
-      ui.selectMode = !ui.selectMode;
-      if (!ui.selectMode) ui.selection.clear();
-      render();
+    case 'toggle-edit': setEditing(!isEditing()); return;
+    case 'dock-labels': {
+      const next = state.settings.dockShowLabels === false;
+      state.settings.dockShowLabels = next;
+      state.dock.forEach((d) => { d.showLabel = next; });
+      saveAll(); render();
+      if (settingsPaint) settingsPaint();
+      toast(next ? 'Показаны названия кнопок' : 'На панели только иконки', { icon: next ? 'eye' : 'eyeOff' });
       return;
     }
     case 'show-more': {
@@ -2884,13 +2979,14 @@ function handleAction(act, el, e) {
       return;
     }
     case 'open-bm': {
-      if (ui.selectMode) {
-        if (e.shiftKey) selectBookmark(id, e);
-        else {
-          if (ui.selection.has(id)) ui.selection.delete(id); else ui.selection.add(id);
+      if (Date.now() - lastDragEnd < 240 || suppressClick) { suppressClick = false; return; }
+      if (isEditing()) {
+        if (e.shiftKey || e.ctrlKey || e.metaKey) { selectBookmark(id, e); return; }
+        if (!(ui.selection.size === 1 && ui.selection.has(id))) {
+          ui.selection.clear();
+          ui.selection.add(id);
           ui.anchorId = id;
-          renderSelectionBar();
-          render();
+          updateSelectionUI();
         }
         return;
       }
@@ -2898,7 +2994,7 @@ function handleAction(act, el, e) {
         selectBookmark(id, e);
         return;
       }
-      if (Date.now() - lastDragEnd < 240) return;
+      if (ui.selection.size) { ui.selection.clear(); updateSelectionUI(); }
       openBookmark(id);
       return;
     }
@@ -2920,9 +3016,11 @@ function handleAction(act, el, e) {
       return;
     }
     case 'dock-add': dockDialog({}); return;
-    case 'dock-open': if (Date.now() - lastDragEnd < 240) return; {
+    case 'dock-open': {
+      if (Date.now() - lastDragEnd < 240 || suppressClick) { suppressClick = false; return; }
       const item = state.dock.find((d) => d.id === id);
       if (!item) return;
+      if (isEditing()) { dockDialog({ dockId: id }); return; }
       if (!isSafeUrl(item.url)) { toast('Ссылка заблокирована', { type: 'error' }); return; }
       if (state.settings.openNewTab) window.open(item.url, '_blank', 'noopener');
       else window.location.href = item.url;
@@ -2931,18 +3029,7 @@ function handleAction(act, el, e) {
     case 'dock-edit': {
       e.stopPropagation();
       const r = el.getBoundingClientRect();
-      openMenu([
-        { label: 'Открыть', icon: 'external', onClick: () => { const it = state.dock.find((d) => d.id === id); if (it) window.open(it.url, '_blank', 'noopener'); } },
-        { label: 'Изменить', icon: 'pencil', onClick: () => dockDialog({ dockId: id }) },
-        { sep: true },
-        { label: 'Убрать с панели', icon: 'trash', danger: true, onClick: () => {
-          const item = state.dock.find((d) => d.id === id);
-          state.dock = state.dock.filter((d) => d.id !== id);
-          state.dock.sort((a, b) => a.order - b.order).forEach((d, i) => { d.order = i; });
-          saveAll(); render();
-          toastUndo('Убрано с панели', dataSnapshot());
-        } }
-      ], r.right - 180, r.bottom + 4);
+      dockMenu(id, r.right - 180, r.bottom + 4);
       return;
     }
     case 'trash-restore': {
@@ -3145,6 +3232,41 @@ function seedDemo(force) {
    23. Boot
    ============================================================ */
 function bindGlobalEvents() {
+  /* long press (touch) opens the same menus as right click */
+  let pressTimer = null;
+  let pressStart = null;
+  const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; pressStart = null; };
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen') return;
+    const tile = e.target.closest('.dock-tile:not(.add)');
+    const card = e.target.closest('.bookmark');
+    if (!tile && !card) return;
+    pressStart = { x: e.clientX, y: e.clientY };
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      suppressClick = true;
+      setTimeout(() => { suppressClick = false; }, 500);
+      if (tile) {
+        const r = tile.getBoundingClientRect();
+        dockMenu(tile.dataset.id, Math.min(r.left, window.innerWidth - 220), r.bottom + 6);
+        if (navigator.vibrate) navigator.vibrate(8);
+      } else if (card && !isEditing()) {
+        const bm = bookmarkById(card.dataset.id);
+        if (bm) {
+          const r = card.getBoundingClientRect();
+          bookmarkMenu(bm, Math.min(r.left + 24, window.innerWidth - 260), r.top + 40);
+          if (navigator.vibrate) navigator.vibrate(8);
+        }
+      }
+    }, 520);
+  }, { passive: true });
+  document.addEventListener('pointerup', cancelPress, { passive: true });
+  document.addEventListener('pointercancel', cancelPress, { passive: true });
+  document.addEventListener('pointermove', (e) => {
+    if (!pressTimer || !pressStart) return;
+    if (Math.abs(e.clientX - pressStart.x) > 12 || Math.abs(e.clientY - pressStart.y) > 12) cancelPress();
+  }, { passive: true });
+
   document.addEventListener('click', (e) => {
     if (menuEl && !e.target.closest('.menu')) closeMenu();
     const actEl = e.target.closest('[data-act]');
@@ -3163,7 +3285,8 @@ function bindGlobalEvents() {
 
   document.addEventListener('dblclick', (e) => {
     const bmEl = e.target.closest('.bookmark');
-    if (bmEl && !state.settings.clickOpens) openBookmark(bmEl.dataset.id);
+    if (!bmEl) return;
+    if (isEditing() || !state.settings.clickOpens) openBookmark(bmEl.dataset.id);
   });
 
   document.addEventListener('contextmenu', (e) => {
@@ -3255,6 +3378,13 @@ function bindGlobalEvents() {
     if (mod && e.code === 'KeyN' && e.shiftKey) { e.preventDefault(); folderDialog({}); return; }
     if (mod && e.code === 'KeyN') { e.preventDefault(); bookmarkDialog({}); return; }
     if (mod && e.code === 'KeyB') { e.preventDefault(); toggleSidebar(); return; }
+    if (mod && e.code === 'KeyE') { e.preventDefault(); setEditing(!isEditing()); return; }
+    if (mod && e.code === 'KeyA' && document.body.classList.contains('editing')) {
+      e.preventDefault();
+      currentBookmarks().forEach((b) => ui.selection.add(b.id));
+      updateSelectionUI();
+      return;
+    }
     if (mod && e.code === 'KeyS') { e.preventDefault(); if (fileHandle) writeToLinkedFile(true); else downloadJSON(); return; }
     if (mod && e.code === 'Comma') { e.preventDefault(); openSettings(); return; }
     if (typing) {
