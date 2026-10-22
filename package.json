@@ -1,0 +1,14 @@
+{
+  "name": "bookmark-station",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bookmark Station — a single-file bookmark manager that can sync with a real JSON file",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "npm run build && node scripts/serve.js",
+    "check": "node --check src/app.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

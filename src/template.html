@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Bookmark Station — менеджер закладок в одном HTML-файле. Папки, теги, архив, быстрые ссылки и синхронизация с JSON на диске.">
+<title>Bookmark Station — закладки</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236c8cff'/%3E%3Cstop offset='1' stop-color='%23a06cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M11 8.5h10a1 1 0 0 1 1 1V24l-6-3.6L10 24V9.5a1 1 0 0 1 1-1z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+__STYLES__
+</style>
+</head>
+<body>
+<noscript><div class="fatal">Для работы Bookmark Station нужен включённый JavaScript.</div></noscript>
+
+<div class="boot-cover" id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M7 4.5h10a1 1 0 0 1 1 1V21l-6-3.4L6 21V5.5a1 1 0 0 1 1-1z"/></svg>
+    </div>
+    <div>Bookmark Station</div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <button type="button" class="icon-btn" data-act="toggle-sidebar" title="Показать/скрыть панель (Ctrl+B)" aria-label="Панель">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"/><path d="M9.2 4v16"/></svg>
+    </button>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4.5h10a1 1 0 0 1 1 1V21l-6-3.4L6 21V5.5a1 1 0 0 1 1-1z"/></svg>
+      </div>
+      <div class="brand-name">Bookmark<span>Station</span></div>
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="search-wrap">
+      <div class="search" id="searchBox">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+        <input id="searchInput" type="text" placeholder="Поиск закладок, тегов, папок…" autocomplete="off" spellcheck="false" aria-label="Поиск">
+        <button type="button" class="icon-btn small search-clear" data-act="clear-search" aria-label="Очистить поиск">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <kbd>Ctrl K</kbd>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <button type="button" class="icon-btn palette-btn" data-act="palette" title="Команды и быстрый поиск (Ctrl+K)" aria-label="Команды">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m11.5 3 1.55 4.15L17.2 8.7l-4.15 1.55L11.5 14.4 9.95 10.25 5.8 8.7l4.15-1.55z"/><path d="m18.2 14.6.75 2.05 2.05.75-2.05.75-.75 2.05-.75-2.05-2.05-.75 2.05-.75z"/></svg>
+    </button>
+    <button type="button" class="sync-pill" id="syncPill" title="Хранилище данных"></button>
+    <button type="button" class="icon-btn" data-act="theme-toggle" title="Сменить тему" aria-label="Тема">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.7 8.7 0 0 1 9.2 3.5 8.8 8.8 0 1 0 20.5 14.8z"/></svg>
+    </button>
+    <button type="button" class="icon-btn" data-act="settings" title="Настройки (Ctrl+,)" aria-label="Настройки">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8M17.5 7H21M4 17h3M12 17h9"/><circle cx="14.7" cy="7" r="2.4"/><circle cx="9.4" cy="17" r="2.4"/></svg>
+    </button>
+    <button type="button" class="btn primary new-btn" data-act="new-bm" title="Новая закладка (Ctrl+N)">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Закладка</span>
+    </button>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="side-scroll" id="sideScroll"></div>
+      <div class="side-foot">
+        <button type="button" class="btn sm ghost" data-act="settings">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8M17.5 7H21M4 17h3M12 17h9"/><circle cx="14.7" cy="7" r="2.4"/><circle cx="9.4" cy="17" r="2.4"/></svg>
+          Настройки
+        </button>
+      </div>
+      <div class="storage-bar"><i id="storageBar" style="width:2%"></i></div>
+      <div class="storage-label" id="storageLabel"></div>
+    </div>
+    <div class="side-resizer" id="sideResizer" title="Потяните, чтобы изменить ширину"></div>
+  </aside>
+
+  <main class="main">
+    <div class="dock-wrap">
+      <div class="dock-label" id="dockLabel"></div>
+      <div class="dock" id="dock"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<input type="file" id="fileInput" class="sr-only" tabindex="-1" aria-hidden="true">
+
+<script>
+__SCRIPT__
+</script>
+</body>
+</html>
